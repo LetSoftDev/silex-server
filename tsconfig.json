@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"strict": true,
+		"outDir": "./dist",
+		"sourceMap": true,
+		"rootDir": "./src",
+		"resolveJsonModule": true,
+		"forceConsistentCasingInFileNames": true,
+		"skipLibCheck": true,
+		"allowSyntheticDefaultImports": true,
+		"types": ["node", "sinon", "supertest", "vitest/globals", "zod"]
+	},
+	"ts-node": {
+		"esm": true,
+		"experimentalSpecifierResolution": "node"
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
+}
