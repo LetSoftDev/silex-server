@@ -17,7 +17,12 @@ dotenv.config({
 })
 
 // Путь к тестовой директории uploads
-export const TEST_UPLOADS_DIR = path.join(process.cwd(), 'test-uploads')
+export const TEST_DIR = path.join(process.cwd(), 'test-uploads')
+export const TEST_UPLOADS_DIR = path.join(process.cwd(), 'test-uploads/uploads')
+export const TEST_UPLOADS_PUBLIC_DIR = path.join(
+	process.cwd(),
+	'test-uploads/public'
+)
 
 // Для правильной типизации в глобальном контексте
 declare global {
@@ -100,101 +105,128 @@ export function setupTestEnv() {
 }
 
 /**
- * Рекурсивно удаляет все файлы и директории внутри указанной директории
+ * Рекурсивно удаляет все файлы и подкаталоги из указанного каталога
  */
-const cleanAllFiles = (dirPath: string): void => {
-	if (!fs.existsSync(dirPath)) return
+async function cleanAllFiles(dirPath: string): Promise<void> {
+	// Проверяем существует ли каталог
+	try {
+		await fs.promises.access(dirPath)
+	} catch (error: any) {
+		// Каталог не существует, ничего делать не нужно
+		return
+	}
 
-	// Получаем список файлов в директории
-	const files = fs.readdirSync(dirPath)
+	// Получаем список файлов в каталоге
+	let files: string[] = []
+	try {
+		files = await fs.promises.readdir(dirPath)
+	} catch (error: any) {
+		console.error(`Ошибка чтения каталога ${dirPath}: ${error.message}`)
+		return
+	}
 
-	// Рекурсивно удаляем все файлы и поддиректории
+	// Обрабатываем каждый файл/каталог
 	for (const file of files) {
-		const curPath = path.join(dirPath, file)
+		const filePath = path.join(dirPath, file)
 
-		// Если это директория, рекурсивно очищаем её, затем удаляем
-		if (fs.lstatSync(curPath).isDirectory()) {
-			cleanAllFiles(curPath)
-			try {
-				fs.rmdirSync(curPath)
-			} catch (error: any) {
-				console.error(
-					`Не удалось удалить директорию ${curPath}: ${error.message}`
-				)
+		try {
+			const stat = await fs.promises.stat(filePath)
+
+			if (stat.isDirectory()) {
+				// Если это каталог, рекурсивно очищаем его
+				await cleanAllFiles(filePath)
+				// Удаляем пустой каталог
+				await fs.promises.rmdir(filePath)
+			} else {
+				// Если это файл, удаляем его
+				await fs.promises.unlink(filePath)
 			}
-		} else {
-			// Удаляем файл
-			try {
-				fs.unlinkSync(curPath)
-			} catch (error: any) {
-				console.error(`Не удалось удалить файл ${curPath}: ${error.message}`)
-			}
+		} catch (error: any) {
+			console.error(`Ошибка при удалении ${filePath}: ${error.message}`)
 		}
 	}
 }
 
 /**
- * Очищает тестовую директорию после запуска тестов
+ * Создает каталог, если он не существует
  */
-export const cleanupTestEnv = (): void => {
-	// Рекурсивно удаляем все файлы из тестовой директории
+export async function createDir(dirPath: string) {
 	try {
-		if (fs.existsSync(TEST_UPLOADS_DIR)) {
-			cleanAllFiles(TEST_UPLOADS_DIR)
+		await fs.promises.access(dirPath)
+	} catch (error: any) {
+		try {
+			await fs.promises.mkdir(dirPath, { recursive: true })
+			console.log(`Каталог создан: ${dirPath}`)
+		} catch (error: any) {
+			console.error(`Ошибка создания каталога ${dirPath}: ${error.message}`)
+		}
+	}
+}
 
-			// Пересоздаем пустую директорию, если она была удалена
-			if (!fs.existsSync(TEST_UPLOADS_DIR)) {
-				fs.mkdirSync(TEST_UPLOADS_DIR)
-			}
+/**
+ * Удаляет каталог, сначала очищая его содержимое
+ */
+export async function removeDir(dirPath: string) {
+	try {
+		// Сначала очищаем каталог рекурсивно
+		await cleanAllFiles(dirPath)
+
+		// Проверяем все еще ли существует каталог
+		try {
+			await fs.promises.access(dirPath)
+			// Если каталог существует, пытаемся удалить его
+			await fs.promises.rmdir(dirPath)
+			console.log(`Каталог удален: ${dirPath}`)
+		} catch (error: any) {
+			// Каталог уже не существует, ничего делать не нужно
 		}
 	} catch (error: any) {
-		console.error(`Ошибка при очистке тестового окружения: ${error.message}`)
+		// Логируем ошибку, но не выбрасываем, чтобы не прерывать тесты
+		console.error(`Ошибка удаления каталога ${dirPath}: ${error.message}`)
 	}
 }
 
-// Функция для создания временного тестового файла
-export const createTestFile = (
-	fileName: string,
-	content: string = 'test content'
-): string => {
-	const filePath = path.join(TEST_UPLOADS_DIR, fileName)
-	fs.writeFileSync(filePath, content)
-	return filePath
-}
-
-// Функция для создания временной тестовой директории
-export const createTestDirectory = (dirName: string): string => {
-	const dirPath = path.join(TEST_UPLOADS_DIR, dirName)
-	if (!fs.existsSync(dirPath)) {
-		fs.mkdirSync(dirPath, { recursive: true })
-	}
-	return dirPath
-}
-
-// Функция для создания директории по указанному пути
-const ensureDir = (dirPath: string) => {
-	if (!fs.existsSync(dirPath)) {
-		fs.mkdirSync(dirPath, { recursive: true })
+/**
+ * Создает тестовый файл с указанным содержимым
+ */
+export async function createTestFile(
+	filePath: string,
+	content = 'test content'
+) {
+	try {
+		const dir = path.dirname(filePath)
+		await createDir(dir)
+		await fs.promises.writeFile(filePath, content)
+	} catch (error: any) {
+		console.error(
+			`Ошибка создания тестового файла ${filePath}: ${error.message}`
+		)
 	}
 }
 
-// Функция для рекурсивного удаления директории
-const removeDir = (dirPath: string) => {
-	if (fs.existsSync(dirPath)) {
-		try {
-			// Сначала очищаем всё содержимое директории
-			cleanAllFiles(dirPath)
+// Настройка среды перед запуском всех тестов
+beforeAll(async () => {
+	// Создаем тестовые каталоги перед запуском тестов
+	await createDir(TEST_DIR)
+	await createDir(TEST_UPLOADS_DIR)
+	await createDir(TEST_UPLOADS_PUBLIC_DIR)
+})
 
-			// Затем пытаемся удалить саму директорию
-			fs.rmdirSync(dirPath)
-		} catch (error: any) {
-			console.error(
-				`Не удалось удалить директорию ${dirPath}: ${error.message}`
-			)
-			// Если не удалось удалить - можно оставить пустую директорию
-		}
-	}
-}
+// Очистка среды после всех тестов
+afterAll(async () => {
+	// Удаляем тестовые каталоги после завершения тестов
+	await removeDir(TEST_UPLOADS_PUBLIC_DIR)
+	await removeDir(TEST_UPLOADS_DIR)
+	await removeDir(TEST_DIR)
+
+	// Очищаем все моки
+	vi.clearAllMocks()
+})
+
+// Перед каждым тестом очищаем моки
+beforeEach(() => {
+	vi.clearAllMocks()
+})
 
 // Мокаем модули, которые нуждаются в моках
 vi.mock('helmet', () => {
@@ -221,55 +253,6 @@ vi.mock('hpp', () => {
 		default: () => (req: any, res: any, next: any) => {
 			next()
 		},
-	}
-})
-
-// Подготовка перед всеми тестами
-beforeAll(() => {
-	// Устанавливаем переменные окружения для тестов
-	process.env.NODE_ENV = 'test'
-	process.env.UPLOADS_DIR = TEST_UPLOADS_DIR
-
-	try {
-		// Создаем тестовую директорию для uploads
-		ensureDir(TEST_UPLOADS_DIR)
-
-		// Создаем некоторые тестовые файлы
-		const testFile = path.join(TEST_UPLOADS_DIR, 'test-file.txt')
-		try {
-			fs.writeFileSync(testFile, 'Test file content')
-		} catch (error: any) {
-			console.warn(`Не удалось создать тестовый файл: ${error.message}`)
-		}
-
-		// Создаем поддиректорию
-		const testSubDir = path.join(TEST_UPLOADS_DIR, 'testdir')
-		ensureDir(testSubDir)
-
-		// Создаем файл в поддиректории
-		const testSubFile = path.join(testSubDir, 'subfile.txt')
-		try {
-			fs.writeFileSync(testSubFile, 'Subfile content')
-		} catch (error: any) {
-			console.warn(
-				`Не удалось создать тестовый файл в поддиректории: ${error.message}`
-			)
-		}
-
-		console.log('✅ Тестовая среда подготовлена')
-	} catch (error: any) {
-		console.error(`Ошибка при подготовке тестовой среды: ${error.message}`)
-	}
-})
-
-// Очистка после всех тестов
-afterAll(() => {
-	// Удаляем тестовую директорию
-	try {
-		removeDir(TEST_UPLOADS_DIR)
-		console.log('✅ Тестовая среда очищена')
-	} catch (error: any) {
-		console.error(`Ошибка при очистке тестовой среды: ${error.message}`)
 	}
 })
 

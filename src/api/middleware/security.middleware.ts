@@ -70,10 +70,52 @@ export const securityMiddleware = {
 	 */
 	pathTraversal: (req: Request, res: Response, next: NextFunction): void => {
 		const url = req.url
+		const path = req.path
+		const query = req.query || {}
 
-		// Проверка на path traversal последовательности
-		if (url.includes('../') || url.includes('..\\')) {
+		// Проверка URL на наличие подозрительных последовательностей
+		const suspiciousPatterns = [
+			'../',
+			'..\\', // Классические path traversal
+			'%2e%2e%2f',
+			'%2e%2e/', // URL-encoded варианты "../"
+			'..%2f',
+			'%2e%2e%5c', // Смешанные кодировки
+			'//etc/',
+			'c:\\', // Абсолютные пути
+			'..\0', // Null byte injection
+		]
+
+		const hasSuspiciousPattern = suspiciousPatterns.some(
+			pattern =>
+				url.includes(pattern) ||
+				(typeof path === 'string' && path.includes(pattern)) ||
+				(query &&
+					Object.keys(query).some(
+						key =>
+							typeof query[key] === 'string' &&
+							query[key].toString().includes(pattern)
+					))
+		)
+
+		if (hasSuspiciousPattern) {
 			next(new ApiError('Запрещенный путь', 403))
+			return
+		}
+
+		// Проверка на попытки обхода с помощью декодирования
+		try {
+			const decodedUrl = decodeURIComponent(url)
+			if (
+				decodedUrl !== url &&
+				suspiciousPatterns.some(pattern => decodedUrl.includes(pattern))
+			) {
+				next(new ApiError('Запрещенный путь', 403))
+				return
+			}
+		} catch (error) {
+			// Если URL не может быть декодирован, это может быть попыткой атаки
+			next(new ApiError('Недопустимый URL', 400))
 			return
 		}
 
@@ -106,6 +148,131 @@ export const securityMiddleware = {
 			if (req.method === 'OPTIONS') {
 				res.status(200).end()
 				return
+			}
+
+			next()
+		}
+	},
+
+	/**
+	 * Защита от NoSQL инъекций и проверка JSON запросов
+	 */
+	preventNoSQLInjection: (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): void => {
+		if (req.body && typeof req.body === 'object') {
+			// Проверяем на наличие операторов MongoDB в запросах
+			const hasMongoOperator = (obj: any): boolean => {
+				if (!obj || typeof obj !== 'object') return false
+
+				return Object.keys(obj).some(key => {
+					// Проверка на NoSQL операторы
+					if (
+						key.startsWith('$') ||
+						key.includes('.') ||
+						key.includes('$ne') ||
+						key.includes('$gt')
+					) {
+						return true
+					}
+
+					// Рекурсивная проверка вложенных объектов
+					if (typeof obj[key] === 'object' && obj[key] !== null) {
+						return hasMongoOperator(obj[key])
+					}
+
+					return false
+				})
+			}
+
+			if (hasMongoOperator(req.body)) {
+				next(new ApiError('Недопустимые данные запроса', 400))
+				return
+			}
+
+			// Проверка JSON на глубину вложенности
+			const checkDepth = (
+				obj: any,
+				currentDepth: number = 0,
+				maxDepth: number = 10
+			): boolean => {
+				if (currentDepth > maxDepth) return false
+				if (!obj || typeof obj !== 'object') return true
+
+				return Object.keys(obj).every(key => {
+					if (typeof obj[key] === 'object' && obj[key] !== null) {
+						return checkDepth(obj[key], currentDepth + 1, maxDepth)
+					}
+					return true
+				})
+			}
+
+			if (!checkDepth(req.body)) {
+				next(
+					new ApiError('Превышена максимальная глубина вложенности JSON', 400)
+				)
+				return
+			}
+		}
+
+		// Проверяем также параметры в query
+		if (req.query && typeof req.query === 'object') {
+			const hasMongoOperator = (obj: any): boolean => {
+				if (!obj || typeof obj !== 'object') return false
+
+				return Object.keys(obj).some(key => {
+					// Проверка на NoSQL операторы
+					if (
+						key.startsWith('$') ||
+						key.includes('.') ||
+						key.includes('$ne') ||
+						key.includes('$gt')
+					) {
+						return true
+					}
+
+					// Рекурсивная проверка вложенных объектов
+					if (typeof obj[key] === 'object' && obj[key] !== null) {
+						return hasMongoOperator(obj[key])
+					}
+
+					return false
+				})
+			}
+
+			if (hasMongoOperator(req.query)) {
+				next(new ApiError('Недопустимые параметры запроса', 400))
+				return
+			}
+		}
+
+		next()
+	},
+
+	/**
+	 * Валидация параметров с использованием whitelist
+	 */
+	validateParams: (allowedParams: string[]): RequestHandler => {
+		return (req: Request, res: Response, next: NextFunction): void => {
+			const query = req.query
+
+			if (query && Object.keys(query).length > 0) {
+				// Проверяем, что все параметры находятся в списке разрешенных
+				const invalidParams = Object.keys(query).filter(
+					param => !allowedParams.includes(param)
+				)
+
+				if (invalidParams.length > 0) {
+					next(
+						new ApiError(
+							`Недопустимые параметры запроса: ${invalidParams.join(', ')}`,
+							400
+						)
+					)
+					return
+				}
 			}
 
 			next()

@@ -37,6 +37,18 @@ try {
 	app.use(securityMiddleware.rateLimiter)
 	app.use(securityMiddleware.pathTraversal)
 	app.use(securityMiddleware.bodySize())
+	app.use(securityMiddleware.preventNoSQLInjection)
+	app.use(
+		securityMiddleware.validateParams([
+			'path',
+			'id',
+			'name',
+			'type',
+			'sort',
+			'page',
+			'limit',
+		])
+	)
 	console.log('✅ Защитные middleware успешно применены')
 } catch (error) {
 	console.error('Ошибка при инициализации security middleware:', error)
