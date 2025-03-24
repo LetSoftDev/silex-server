@@ -3,7 +3,7 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import fileRoutes from './routes/file.routes.js'
+import apiRoutes from './routes/index.js'
 import config from './config/config.js'
 import { errorHandler } from './middleware/error.middleware.js'
 
@@ -27,8 +27,7 @@ app.use(express.json())
 app.use('/uploads', express.static(config.uploadsDir))
 
 // Регистрация маршрутов API
-app.use('/api/files', fileRoutes)
-app.use('/api', fileRoutes)
+app.use('/api', apiRoutes)
 
 // Базовый маршрут для проверки API
 app.get('/api', (req, res) => {
