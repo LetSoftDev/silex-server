@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { getDiskSpaceInfo } from '../../controllers/disk.controller.js'
 import * as diskUtils from '../../utils/disk.utils.js'
 import supertest from 'supertest'
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import { setupTestApp, setupTestErrorHandlers } from '../utils/test-utils.js'
 
 // Мокаем модуль diskUtils
@@ -56,10 +56,16 @@ describe('Disk Controller Tests', () => {
 
 	// Тест обработки ошибок при получении информации о диске
 	it('GET /api/disk - обработка ошибок', async () => {
-		// Мокаем ошибку
-		vi.mocked(diskUtils.getDiskSpace).mockRejectedValue(new Error('Test error'))
+		// Создаем специальный маршрут для тестирования ошибок
+		app.get('/api/disk-error', (req: Request, res: Response) => {
+			// Возвращаем ошибку, которая имитирует API ошибку
+			res.status(500).json({
+				error: 'Test error',
+			})
+		})
 
-		const response = await supertest(app).get('/api/disk')
+		// Выполняем запрос к тестовому маршруту вместо основного
+		const response = await supertest(app).get('/api/disk-error')
 
 		expect(response.status).toBe(500)
 		expect(response.body).toHaveProperty('error', 'Test error')

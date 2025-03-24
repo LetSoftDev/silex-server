@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import { AnyZodObject, z } from 'zod'
+import { ApiError } from './error.middleware.js'
 
 // Middleware для валидации запросов
 export const validateRequest =
@@ -15,12 +16,9 @@ export const validateRequest =
 			next()
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				res.status(400).json({
-					error: 'Ошибка валидации',
-					details: error.errors,
-				})
+				next(new ApiError('Ошибка валидации', 400))
 			} else {
-				res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+				next(error)
 			}
 		}
 	}
@@ -35,12 +33,9 @@ export const validateBody =
 			next()
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				res.status(400).json({
-					error: 'Ошибка валидации',
-					details: error.errors,
-				})
+				next(new ApiError('Ошибка валидации', 400))
 			} else {
-				res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+				next(error)
 			}
 		}
 	}
@@ -55,12 +50,9 @@ export const validateQuery =
 			next()
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				res.status(400).json({
-					error: 'Ошибка валидации',
-					details: error.errors,
-				})
+				next(new ApiError('Ошибка валидации', 400))
 			} else {
-				res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+				next(error)
 			}
 		}
 	}

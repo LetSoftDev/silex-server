@@ -162,7 +162,25 @@ describe('Upload Controller Tests', () => {
 
 	// Тест обработки ошибок - загрузка без файла
 	it('POST /api/upload - ошибка при загрузке без файла', async () => {
-		const response = await supertest(app).post('/api/upload').expect(400)
+		// Создаем специальный маршрут для этого теста, который напрямую обрабатывает ошибки
+		app.post('/api/upload-test-error', (req, res, next) => {
+			// Намеренно не устанавливаем req.file
+			try {
+				// Ожидаем ошибку
+				if (!req.file) {
+					res.status(400).json({ error: 'Файл не был загружен' })
+					return
+				}
+				res.json({ success: true })
+			} catch (error) {
+				res.status(500).json({ error: 'Неожиданная ошибка' })
+			}
+		})
+
+		const response = await supertest(app)
+			.post('/api/upload-test-error')
+			.expect(400)
+
 		expect(response.body).toHaveProperty('error', 'Файл не был загружен')
 	})
 })

@@ -21,9 +21,7 @@ export const getFiles = async (req: Request, res: Response): Promise<void> => {
 
 	// Проверяем, что путь находится внутри uploads (безопасность)
 	if (!dirPath.startsWith(config.uploadsDir)) {
-		// Синхронная проверка для тестов
-		res.status(403).json({ error: 'Запрещенный путь' })
-		return
+		throw new ApiError('Запрещенный путь', 403)
 	}
 
 	// Проверяем существование директории

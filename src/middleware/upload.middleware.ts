@@ -3,6 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import { ApiError } from './error.middleware.js'
 import config from '../config/config.js'
+import { UploadService } from '../services/upload.service.js'
 
 /**
  * Конфигурация хранилища multer для сохранения файлов
@@ -79,4 +80,4 @@ export const fileUpload = multer({
 /**
  * Middleware для загрузки одиночного файла
  */
-export const uploadSingleFile = fileUpload.single('file')
+export const uploadSingleFile = UploadService.getSingleFileUploader()
