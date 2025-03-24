@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url'
 import apiRoutes from './api/routes/index.js'
 import config from './infrastructure/config/config.js'
 import { errorHandler } from './api/middleware/error.middleware.js'
+import { securityMiddleware } from './api/middleware/security.middleware.js'
 
 // Получаем текущую директорию для ESM
 const __filename = fileURLToPath(import.meta.url)
@@ -19,8 +20,20 @@ if (!fs.existsSync(config.uploadsDir)) {
 	console.log('✅ Создана директория uploads для хранения файлов')
 }
 
-// Настройка CORS
-app.use(cors(config.corsOptions))
+// Добавляем middleware безопасности
+app.use(securityMiddleware.helmet)
+app.use(securityMiddleware.hpp)
+app.use(securityMiddleware.rateLimiter)
+app.use(securityMiddleware.pathTraversal)
+app.use(securityMiddleware.bodySize())
+
+// Настройка CORS (используем либо нашу конфигурацию, либо middleware из пакета)
+if (config.corsOptions) {
+	app.use(cors(config.corsOptions))
+} else {
+	app.use(securityMiddleware.cors(['http://localhost:3000']))
+}
+
 app.use(express.json())
 
 // Статическое обслуживание файлов из папки uploads
