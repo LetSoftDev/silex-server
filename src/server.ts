@@ -3,9 +3,9 @@ import cors from 'cors'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import apiRoutes from './routes/index.js'
-import config from './config/config.js'
-import { errorHandler } from './middleware/error.middleware.js'
+import apiRoutes from './api/routes/index.js'
+import config from './infrastructure/config/config.js'
+import { errorHandler } from './api/middleware/error.middleware.js'
 
 // Получаем текущую директорию для ESM
 const __filename = fileURLToPath(import.meta.url)

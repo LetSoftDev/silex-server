@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { DiskSpaceInfo } from '../models/file.model.js'
+import { DiskSpaceInfo } from '../domain/models/file.model.js'
 
 /**
  * Получает информацию о дисковом пространстве

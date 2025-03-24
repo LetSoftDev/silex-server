@@ -1,4 +1,4 @@
-import { FileType } from '../models/file.model.js'
+import { FileType } from '../domain/models/file.model.js'
 
 /**
  * Определяет тип файла по расширению
