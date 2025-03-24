@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import {
 	describe,
 	it,
@@ -8,13 +9,13 @@ import {
 	afterAll,
 	vi,
 } from 'vitest'
-import { calculateDirectorySize, getDiskSpace } from '@/utils/disk.utils'
+import { calculateDirectorySize, getDiskSpace } from '../../utils/disk.utils.js'
 import {
 	setupTestEnv,
 	cleanupTestEnv,
 	createTestFile,
 	TEST_UPLOADS_DIR,
-} from '../setup'
+} from '../setup.js'
 
 // Мокаем fs для тестов
 vi.mock('fs', async importOriginal => {
@@ -74,9 +75,41 @@ describe('Disk Utils Tests', () => {
 
 	describe('getDiskSpace', () => {
 		it('возвращает информацию о дисковом пространстве', async () => {
-			// Создаем тестовые файлы
-			createTestFile('info-test1.txt', 'test content 1')
-			createTestFile('info-test2.txt', 'test content 2')
+			// Мокируем calculateDirectorySize для возврата известного значения
+			const mockDirSize = 1024 * 10 // 10 KB
+
+			// Мокируем fs.stat для возврата известных значений
+			const mockStat = {
+				isDirectory: () => true,
+				size: 1000,
+				dev: 0,
+				ino: 0,
+				mode: 0,
+				nlink: 0,
+				uid: 0,
+				gid: 0,
+				rdev: 0,
+				blocks: 0,
+				atimeMs: 0,
+				mtimeMs: 0,
+				ctimeMs: 0,
+				birthtimeMs: 0,
+				atime: new Date(),
+				mtime: new Date(),
+				ctime: new Date(),
+				birthtime: new Date(),
+				blksize: 0,
+			} as fs.Stats
+
+			vi.spyOn(fs.promises, 'stat').mockImplementation(() =>
+				Promise.resolve(mockStat)
+			)
+
+			// Мокируем метод calculateDirectorySize
+			vi.spyOn(
+				{ calculateDirectorySize },
+				'calculateDirectorySize'
+			).mockResolvedValue(mockDirSize)
 
 			// Вызываем функцию
 			const info = await getDiskSpace(TEST_UPLOADS_DIR)

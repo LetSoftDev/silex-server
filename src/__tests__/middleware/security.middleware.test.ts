@@ -28,6 +28,34 @@ describe('Security Middleware', () => {
 		next = vi.fn()
 	})
 
+	describe('basicSecurity', () => {
+		it('должен устанавливать защитные HTTP заголовки', () => {
+			securityMiddleware.basicSecurity(req as Request, res as Response, next)
+
+			expect(res.setHeader).toHaveBeenCalledWith(
+				'X-Content-Type-Options',
+				'nosniff'
+			)
+			expect(res.setHeader).toHaveBeenCalledWith(
+				'X-XSS-Protection',
+				'1; mode=block'
+			)
+			expect(res.setHeader).toHaveBeenCalledWith(
+				'X-Frame-Options',
+				'SAMEORIGIN'
+			)
+			expect(res.setHeader).toHaveBeenCalledWith(
+				'Referrer-Policy',
+				'same-origin'
+			)
+			expect(res.setHeader).toHaveBeenCalledWith(
+				'Content-Security-Policy',
+				expect.any(String)
+			)
+			expect(next).toHaveBeenCalled()
+		})
+	})
+
 	describe('pathTraversal', () => {
 		it('должен блокировать пути с "../" последовательностями', () => {
 			req.url = '/api/files/../config'

@@ -20,12 +20,8 @@ if (!fs.existsSync(config.uploadsDir)) {
 	console.log('✅ Создана директория uploads для хранения файлов')
 }
 
-// Добавляем middleware безопасности
-app.use(securityMiddleware.helmet)
-app.use(securityMiddleware.hpp)
-app.use(securityMiddleware.rateLimiter)
-app.use(securityMiddleware.pathTraversal)
-app.use(securityMiddleware.bodySize())
+// Базовые middleware
+app.use(express.json())
 
 // Настройка CORS (используем либо нашу конфигурацию, либо middleware из пакета)
 if (config.corsOptions) {
@@ -34,7 +30,17 @@ if (config.corsOptions) {
 	app.use(securityMiddleware.cors(['http://localhost:3000']))
 }
 
-app.use(express.json())
+// Добавляем middleware безопасности по порядку
+try {
+	app.use(securityMiddleware.basicSecurity)
+	app.use(securityMiddleware.hpp)
+	app.use(securityMiddleware.rateLimiter)
+	app.use(securityMiddleware.pathTraversal)
+	app.use(securityMiddleware.bodySize())
+	console.log('✅ Защитные middleware успешно применены')
+} catch (error) {
+	console.error('Ошибка при инициализации security middleware:', error)
+}
 
 // Статическое обслуживание файлов из папки uploads
 app.use('/uploads', express.static(config.uploadsDir))

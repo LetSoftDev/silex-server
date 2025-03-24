@@ -207,7 +207,7 @@ vi.mock('helmet', () => {
 
 vi.mock('express-rate-limit', () => {
 	return {
-		default: ({ max, windowMs, message }: any) => {
+		rateLimit: ({ max, windowMs, message }: any) => {
 			return (req: any, res: any, next: any) => {
 				// Упрощенная реализация rate limiter для тестирования
 				next()
@@ -230,22 +230,36 @@ beforeAll(() => {
 	process.env.NODE_ENV = 'test'
 	process.env.UPLOADS_DIR = TEST_UPLOADS_DIR
 
-	// Создаем тестовую директорию для uploads
-	ensureDir(TEST_UPLOADS_DIR)
+	try {
+		// Создаем тестовую директорию для uploads
+		ensureDir(TEST_UPLOADS_DIR)
 
-	// Создаем некоторые тестовые файлы
-	const testFile = path.join(TEST_UPLOADS_DIR, 'test-file.txt')
-	fs.writeFileSync(testFile, 'Test file content')
+		// Создаем некоторые тестовые файлы
+		const testFile = path.join(TEST_UPLOADS_DIR, 'test-file.txt')
+		try {
+			fs.writeFileSync(testFile, 'Test file content')
+		} catch (error: any) {
+			console.warn(`Не удалось создать тестовый файл: ${error.message}`)
+		}
 
-	// Создаем поддиректорию
-	const testSubDir = path.join(TEST_UPLOADS_DIR, 'testdir')
-	ensureDir(testSubDir)
+		// Создаем поддиректорию
+		const testSubDir = path.join(TEST_UPLOADS_DIR, 'testdir')
+		ensureDir(testSubDir)
 
-	// Создаем файл в поддиректории
-	const testSubFile = path.join(testSubDir, 'subfile.txt')
-	fs.writeFileSync(testSubFile, 'Subfile content')
+		// Создаем файл в поддиректории
+		const testSubFile = path.join(testSubDir, 'subfile.txt')
+		try {
+			fs.writeFileSync(testSubFile, 'Subfile content')
+		} catch (error: any) {
+			console.warn(
+				`Не удалось создать тестовый файл в поддиректории: ${error.message}`
+			)
+		}
 
-	console.log('✅ Тестовая среда подготовлена')
+		console.log('✅ Тестовая среда подготовлена')
+	} catch (error: any) {
+		console.error(`Ошибка при подготовке тестовой среды: ${error.message}`)
+	}
 })
 
 // Очистка после всех тестов

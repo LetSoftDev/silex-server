@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
-import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
+import { rateLimit } from 'express-rate-limit'
 import hpp from 'hpp'
 import { ApiError } from '../../infrastructure/services/error.service.js'
 
@@ -9,21 +8,30 @@ import { ApiError } from '../../infrastructure/services/error.service.js'
  */
 export const securityMiddleware = {
 	/**
-	 * Настройка Helmet для защиты заголовков HTTP
+	 * Базовые настройки безопасности заголовков
 	 */
-	helmet: helmet({
-		contentSecurityPolicy: {
-			directives: {
-				defaultSrc: ["'self'"],
-				scriptSrc: ["'self'", "'unsafe-inline'"],
-				styleSrc: ["'self'", "'unsafe-inline'"],
-				imgSrc: ["'self'", 'data:'],
-			},
-		},
-		xssFilter: true,
-		noSniff: true,
-		referrerPolicy: { policy: 'same-origin' },
-	}),
+	basicSecurity: (req: Request, res: Response, next: NextFunction): void => {
+		// Установка защитных заголовков вручную
+		res.setHeader('X-Content-Type-Options', 'nosniff')
+		res.setHeader('X-XSS-Protection', '1; mode=block')
+		res.setHeader('X-Frame-Options', 'SAMEORIGIN')
+		res.setHeader('Referrer-Policy', 'same-origin')
+
+		// Content Security Policy
+		const cspValue = [
+			"default-src 'self'",
+			"script-src 'self' 'unsafe-inline'",
+			"style-src 'self' 'unsafe-inline'",
+			"img-src 'self' data:",
+			"font-src 'self'",
+			"object-src 'none'",
+			"base-uri 'self'",
+		].join('; ')
+
+		res.setHeader('Content-Security-Policy', cspValue)
+
+		next()
+	},
 
 	/**
 	 * Защита от HTTP Parameter Pollution

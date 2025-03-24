@@ -12,7 +12,7 @@ describe('Security Middleware Integration', () => {
 	const app = express()
 
 	// Добавляем защитные middleware
-	app.use(securityMiddleware.helmet)
+	app.use(securityMiddleware.basicSecurity)
 	app.use(securityMiddleware.hpp)
 	app.use(securityMiddleware.pathTraversal)
 
@@ -31,12 +31,20 @@ describe('Security Middleware Integration', () => {
 	const request = supertest(app)
 
 	describe('HTTP Headers Security', () => {
-		// Helmet уже мокирован в setup.ts, поэтому просто тестируем, что запрос проходит
-		it('должен успешно обрабатывать запросы с защитными заголовками', async () => {
+		it('должен устанавливать защитные HTTP заголовки', async () => {
 			const response = await request.get('/api/test')
 
 			expect(response.status).toBe(200)
-			expect(response.body).toHaveProperty('success', true)
+			expect(response.headers).toHaveProperty(
+				'x-content-type-options',
+				'nosniff'
+			)
+			expect(response.headers).toHaveProperty(
+				'x-xss-protection',
+				'1; mode=block'
+			)
+			expect(response.headers).toHaveProperty('x-frame-options', 'SAMEORIGIN')
+			expect(response.headers).toHaveProperty('content-security-policy')
 		})
 	})
 
